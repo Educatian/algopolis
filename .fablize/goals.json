@@ -1,27 +1,27 @@
 {
- "brief": "ALGOPOLIS game audio: procedural Web Audio SFX + ambient pad + mute, deploy & verify",
- "created": "2026-06-14T06:24:22.661955+00:00",
+ "brief": "ALGOPOLIS: Higgsfield facade textures on 3D buildings + day/night lighting, verify & deploy",
+ "created": "2026-06-14T07:02:12.901035+00:00",
  "goals": [
   {
    "id": "G001",
-   "title": "SFX engine",
-   "objective": "Procedural Web Audio SFX (click/build/research/run/event/victory/collapse) + gesture-started AudioContext + mute toggle in header, no external assets",
+   "title": "Facade textures",
+   "objective": "Generate 4 facade textures (res/civ/ind/data) w/ lit windows; load as THREE map+emissiveMap on building boxes (white base when textured, flat fallback)",
    "status": "complete",
-   "evidence": "Web Audio SFX engine added: AUDIO ctx + blip()/snd() with 9 cues (click/select/build/research/run/event/victory/collapse/error); gesture-started+resumed AudioContext on first pointerdown; mute toggle #muteBtn (localStorage algopolis_muted); snd() hooked into onBtn/placeZone/researchTech/runCycle/showEvent/endGame/flash. node --check SYNTAX OK."
+   "evidence": "4 Higgsfield facade textures (res/civ/ind/data, lit windows) downloaded to assets/fac_*.png; loaded as THREE.Texture into TEX2; makeBuilding applies them as map+emissiveMap on building boxes (white base when textured, flat-color fallback). Day screenshot shows window/panel detail on grounded buildings. SYNTAX OK."
   },
   {
    "id": "G002",
-   "title": "Ambient pad",
-   "objective": "Generative low-volume ambient音 (oscillator drone/arpeggio) tied to mute, starts on first gesture",
+   "title": "Day/night lighting",
+   "objective": "Header sun/moon toggle shifts ambient/dir/fog/bg + window emissive glow; thriving/starved tint the glowing windows",
    "status": "complete",
-   "evidence": "Ambient pad startPad(): low-volume drone (2 detuned sines through LFO-modulated lowpass) + interval arpeggio (pentatonic, blip vol .05), routed via AUDIO.master so mute-gated; auto-starts on first pointerdown gesture (typeof-guarded call). node --check SYNTAX OK."
+   "evidence": "Day/night setNight(): AMB/DL/DL2+fog+#bg3d shift; building emissiveIntensity 0.16 day / 0.95 night, emiCol thriving teal / starved red / normal warm via emissiveMap = glowing windows; ☀/🌙 toggle + localStorage + ?night hook. Day & night screenshots distinct (even-lit vs dark-blue glowing windows)."
   },
   {
    "id": "G003",
    "title": "Verify & deploy",
-   "objective": "puppeteer confirms AudioContext starts + SFX callable + mute works with no errors; repackage, deploy to Higgsfield, live render check, push GitHub",
-   "status": "complete",
-   "evidence": "Audio verified via puppeteer (instrumented window.AudioContext): ctx created on first gesture, oscillators fire on select/run (osc 9->15), ambient pad starts (3 osc), mute toggles 🔊<->🔇 + localStorage, 0 pageerrors. Deployed to Higgsfield (game_id 99dcde78, live render OK with 🔊 in header). Pushed GitHub b447e62."
+   "objective": "headless day+night screenshots show textured grounded buildings w/ glowing windows, no errors; deploy Higgsfield + push GitHub",
+   "status": "in_progress",
+   "evidence": null
   }
  ]
 }

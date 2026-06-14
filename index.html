@@ -103,8 +103,8 @@
   #helpBtn:hover{border-color:var(--teal);color:var(--teal)}
   #langBtn{height:28px;min-width:34px;padding:0 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-weight:800;font-size:12px;cursor:pointer;transition:.12s}
   #langBtn:hover{border-color:var(--teal);color:var(--teal)}
-  #muteBtn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);font-size:13px;cursor:pointer;transition:.12s;line-height:1}
-  #muteBtn:hover{border-color:var(--teal)}
+  #muteBtn,#dayBtn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);font-size:13px;cursor:pointer;transition:.12s;line-height:1}
+  #muteBtn:hover,#dayBtn:hover{border-color:var(--teal)}
   #tourBlock{position:fixed;inset:0;z-index:79;display:none}
   #tourBlock.show{display:block}
   #tourHole{position:fixed;display:none;border-radius:12px;border:2px solid var(--teal);box-shadow:0 0 0 9999px rgba(6,10,18,.74),0 0 18px rgba(63,224,208,.5);z-index:80;pointer-events:none;transition:all .25s cubic-bezier(.4,0,.2,1)}
@@ -161,6 +161,7 @@
     <div id="resStrip" style="display:flex;gap:7px;flex-wrap:wrap"></div>
     <div class="pill" id="cyclePill"></div>
     <div class="pill" id="eraPill"></div>
+    <button id="dayBtn" title="Day / Night">☀</button>
     <button id="muteBtn" title="Sound"></button>
     <button id="langBtn" title="Language / 언어"></button>
     <button id="helpBtn" title="Tutorial">?</button>
@@ -544,7 +545,8 @@ function runDebrief(w,f,e,u){const B=built();const starved=B.filter(t=>t.served/
 const glcanvas=$("c");
 const A={icURL:{}};
 let renderer,scene,cam,ray,tileMeshes=[],bldSprites=[],TEX={},hover=-1,VW=0,VH=0;
-let parts=[],PG,PPOS,PCOL,PTS,CORE,lastInput=0;const PMAX=440;
+let parts=[],PG,PPOS,PCOL,PTS,CORE,lastInput=0;const PMAX=440;const TEX2={};
+let AMB,DL,DL2,night=false;try{night=localStorage.getItem("algopolis_night")==="1";}catch(e){}
 let azim=Math.PI*0.25,polar=0.95,radius=GRID*1.4,azimT=azim,polarT=polar,radiusT=radius,pulse=0;
 const target=new THREE.Vector3(0,0.3,0);
 const W2=g=>g-(GRID-1)/2;
@@ -565,15 +567,19 @@ async function loadAssets(){
   iconIds.forEach((id,n)=>{A.icURL[id]=cToURL(chroma(icons[n]));});
   const ubu=cToURL(chroma(ub)),uou=cToURL(chroma(uo));
   if(ubu)document.documentElement.style.setProperty("--btn",`url(${ubu})`);if(uou)document.documentElement.style.setProperty("--btnon",`url(${uou})`);
+  // building facade textures (Higgsfield) -> map+emissiveMap
+  const [fr,fc,fi,fd]=await Promise.all([loadImg("./assets/fac_residential.png"),loadImg("./assets/fac_civic.png"),loadImg("./assets/fac_industrial.png"),loadImg("./assets/fac_data.png")]);
+  const mtex=im=>{if(!im)return null;const t=new THREE.Texture(im);t.needsUpdate=true;t.colorSpace=THREE.SRGBColorSpace;return t;};
+  TEX2.residential=mtex(fr);TEX2.civic=mtex(fc);TEX2.industrial=mtex(fi);TEX2.data=mtex(fd);
   initScene();paintIcons();
 }
 function initScene(){
   renderer=new THREE.WebGLRenderer({canvas:glcanvas,antialias:true,alpha:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setClearColor(0x000000,0);
   scene=new THREE.Scene();cam=new THREE.PerspectiveCamera(42,1,0.1,1000);
-  scene.add(new THREE.AmbientLight(0xdfeaff,0.92));
-  const dl=new THREE.DirectionalLight(0xfff0d8,0.8);dl.position.set(6,14,7);scene.add(dl);
-  const dl2=new THREE.DirectionalLight(0x3fe0d0,0.22);dl2.position.set(-7,5,-6);scene.add(dl2);
+  AMB=new THREE.AmbientLight(0xdfeaff,0.92);scene.add(AMB);
+  DL=new THREE.DirectionalLight(0xfff0d8,0.8);DL.position.set(6,14,7);scene.add(DL);
+  DL2=new THREE.DirectionalLight(0x3fe0d0,0.22);DL2.position.set(-7,5,-6);scene.add(DL2);
   ray=new THREE.Raycaster();
   scene.fog=new THREE.Fog(0x0b1018,GRID*1.3,GRID*3.1);
   const gp=new THREE.Mesh(new THREE.PlaneGeometry(GRID*3.4,GRID*3.4),new THREE.MeshBasicMaterial({color:0x0b1220}));gp.rotation.x=-Math.PI/2;gp.position.y=-0.28;scene.add(gp);
@@ -595,13 +601,20 @@ function initScene(){
   const ring2=new THREE.Mesh(new THREE.TorusGeometry(.85,.035,8,40),new THREE.MeshBasicMaterial({color:0x6fb8ff,transparent:true,opacity:.4}));CORE.add(ring2);
   const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.34,0),new THREE.MeshBasicMaterial({color:0x3fe0d0,wireframe:true,transparent:true,opacity:.6}));CORE.add(orb);
   CORE.position.set(0,2.4,0);scene.add(CORE);
-  lastInput=performance.now();
+  lastInput=performance.now();setNight(night);
   resize();requestAnimationFrame(loop);
 }
 function resize(){if(!renderer)return;const r=glcanvas.getBoundingClientRect();VW=r.width;VH=r.height;renderer.setSize(VW,VH,false);cam.aspect=VW/Math.max(1,VH);cam.updateProjectionMatrix();}
 addEventListener("resize",resize);addEventListener("orientationchange",resize);
-function makeBuilding(zone){const g=new THREE.Group();const M=c=>new THREE.MeshLambertMaterial({color:c});const parts=[];
-  function box(w,h,d,x,z,c,yb){const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));b.position.set(x,(yb||0)+h/2,z);g.add(b);parts.push({mesh:b,base:c});return b;}
+function setNight(n){night=n;try{localStorage.setItem("algopolis_night",n?"1":"0");}catch(e){}
+  if(AMB){AMB.color.setHex(n?0x2a3a6a:0xdfeaff);AMB.intensity=n?0.42:0.92;}
+  if(DL){DL.color.setHex(n?0x9fb6ff:0xfff0d8);DL.intensity=n?0.25:0.8;}
+  if(DL2)DL2.intensity=n?0.4:0.22;
+  if(scene&&scene.fog)scene.fog.color.setHex(n?0x05070e:0x0b1018);
+  const bg=$("bg3d");if(bg)bg.style.filter=n?"blur(11px) brightness(.2) saturate(1.15) hue-rotate(205deg)":"blur(11px) brightness(.46) saturate(.9)";
+  const b=$("dayBtn");if(b)b.textContent=n?"🌙":"☀";}
+function makeBuilding(zone){const g=new THREE.Group();const M=c=>new THREE.MeshLambertMaterial({color:c});const parts=[];const fx=TEX2[zone];
+  function box(w,h,d,x,z,c,yb){const mat=fx?new THREE.MeshLambertMaterial({color:0xffffff,map:fx,emissiveMap:fx}):M(c);const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);b.position.set(x,(yb||0)+h/2,z);g.add(b);parts.push({mesh:b,base:fx?0xffffff:c});return b;}
   const slate=0x6c82a8,concrete=0x9fb0cc,dark=0x44506a,amber=0xf2b24c,steel=0x556074,srv=0x33425f;
   if(zone==="residential"){box(0.52,0.72,0.5,-0.18,-0.08,slate);box(0.46,1.0,0.46,0.2,0.16,slate);box(0.42,0.5,0.42,0.06,-0.26,concrete);}
   else if(zone==="civic"){box(0.86,0.5,0.82,0,0,concrete);const d=new THREE.Mesh(new THREE.SphereGeometry(0.3,16,10,0,6.283,0,1.571),M(amber));d.position.y=0.5;g.add(d);parts.push({mesh:d,base:amber});box(0.09,0.52,0.09,-0.3,0.3,concrete);box(0.09,0.52,0.09,0.3,0.3,concrete);}
@@ -620,11 +633,12 @@ function syncScene(now){const t=now||0;
       const cov=t0.served/Math.max(1,t0.trueNeed);const topY=m.position.y+0.12;        // sit on the tile top — grounded, not floating
       let sy=1+0.25*(t0.level-1),pop=1;
       if(g.userData.born){const age=(t-g.userData.born)/450;if(age<1)pop=Math.max(.02,age<.7?age/.7:1+Math.sin((age-.7)*7)*.1*(1-age));else g.userData.born=0;} // rise from ground
-      let lean=0,emi=0x000000,mul=1;
-      if(cov<0.45){lean=Math.sin(t/60+idx)*(0.03+pulse*0.06);emi=0x4a0f12;mul=0.55;}     // suffering: lean + darken + red
-      else if(cov>0.85){emi=0x10403b;sy*=1+pulse*0.06;}                                   // thriving: lit windows + grow on run
+      let lean=0,mul=1,emiCol,glow;const bg=night?0.95:0.16;                              // window glow base (night = bright)
+      if(cov<0.45){lean=Math.sin(t/60+idx)*(0.03+pulse*0.06);mul=0.6;emiCol=0xff5a44;glow=bg*1.15;}  // suffering: lean+darken+red windows
+      else if(cov>0.85){sy*=1+pulse*0.06;emiCol=0x3fe0d0;glow=bg*1.3;}                    // thriving: teal lit windows + grow
+      else {emiCol=0xffcaa0;glow=bg;}                                                     // normal: warm windows
       g.scale.set(1,sy*pop,1);g.position.set(W2(t0.gx),topY,W2(t0.gy));g.rotation.z=lean;
-      for(const pt of g.userData.parts){const mm=pt.mesh.material;mm.emissive.setHex(emi);mm.color.setHex(pt.base);if(mul<1)mm.color.multiplyScalar(mul);}
+      for(const pt of g.userData.parts){const mm=pt.mesh.material;mm.color.setHex(pt.base);if(mul<1)mm.color.multiplyScalar(mul);mm.emissive.setHex(emiCol);mm.emissiveIntensity=glow;}
       const wx=W2(t0.gx),wz=W2(t0.gy),topE=topY+1.0*sy*pop;
       if(t0.zone==="industrial"&&Math.random()<0.06)emit(wx-0.18,topE,wz-0.08,.5,.5,.55,1.3,.013);
       else if(t0.zone==="data"&&Math.random()<0.05)emit(wx+rnd(-.15,.15),topE,wz,.25,.85,.85,1.6,.022);
@@ -679,6 +693,7 @@ function newGame(){reset();buildMeters();buildResStrip();buildTabs();tab="build"
 $("startBtn").onclick=()=>{hide("intro");try{if(!localStorage.getItem("algopolis_onboarded"))startTour();}catch(e){startTour();}};
 $("runBtn").onclick=()=>runCycle();$("dbgClose").onclick=()=>hide("debug");$("againBtn").onclick=newGame;
 $("muteBtn").onclick=()=>{audioInit();setMute(!AUDIO.muted);if(!AUDIO.muted&&AUDIO.ctx&&AUDIO.ctx.state==="suspended")AUDIO.ctx.resume();snd("click");};
+$("dayBtn").onclick=()=>{setNight(!night);snd("click");};
 setMute(AUDIO.muted);
 addEventListener("pointerdown",()=>{audioInit();if(AUDIO.ctx&&AUDIO.ctx.state==="suspended")AUDIO.ctx.resume();if(typeof startPad==="function")startPad();},{passive:true});
 function setLang(l){if(!STR[l])return;lang=l;try{localStorage.setItem("algopolis_lang",l);}catch(e){}
@@ -715,6 +730,7 @@ addEventListener("keydown",e=>{if(e.code==="Space"&&!$("runBtn").disabled){e.pre
   if(qs.has("ev"))showEvent(qs.get("ev"));
   if(qs.has("az"))azim=parseFloat(qs.get("az"));
   if(qs.has("po"))polar=parseFloat(qs.get("po"));
+  if(qs.has("night"))setNight(qs.get("night")!=="0");
   if(qs.has("tour"))startTour();
   if(qs.has("tourstep")){startTour();showStep(parseInt(qs.get("tourstep"))||0);}
   if(qs.has("endtest"))endGame(qs.get("endtest")||undefined);})();
