@@ -60,6 +60,7 @@ It is built for **classroom and workshop use** (AI literacy, CS education, ethic
 - 🌍 **Geopolitics** — rival AI nations evolve and compete on a live leaderboard.
 - 🎲 **Replayability** — event deck of ethical dilemmas, randomized maps, multiple victory paths + a collapse failure state.
 - 🎓 **Pedagogy built‑in** — hands‑on tutorial, per‑cycle coaching debriefs, and an end‑screen **concept recap**.
+- 🌐 **Bilingual** — English / 한국어, one‑tap toggle (or `?lang=ko`); all text externalized for easy translation.
 - 📦 **Zero backend** — a single static page; runs offline once loaded.
 
 ---
@@ -192,6 +193,12 @@ python -m http.server 8000
 Helper query flags: `?nointro` skip intro · `?tour` start tutorial · `?dev` FPS overlay.
 
 ---
+
+## Game suite & research telemetry
+
+ALGOPOLIS (the *designer* lens on algorithmic systems) is designed to pair with **Reboot 2050** (a *citizen/decision* lens on AI ethics) as a complementary two‑game suite for AI‑literacy education and research. Both map to the same competency framework but cover different stances and cognitive levels.
+
+A draft plan for **analysis‑compatible learning telemetry** across the two games — using a shared participant id and a mirrored log schema, while keeping each game's data store fully isolated — lives in **[`docs/TELEMETRY_PLAN.md`](docs/TELEMETRY_PLAN.md)**. (Plan only; not yet implemented.)
 
 ## Credits
 

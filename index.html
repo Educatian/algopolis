@@ -101,6 +101,8 @@
   #tip b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:2px}#tip span{font-size:11px;color:var(--dim);line-height:1.4}
   #helpBtn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-weight:800;font-size:14px;cursor:pointer;transition:.12s}
   #helpBtn:hover{border-color:var(--teal);color:var(--teal)}
+  #langBtn{height:28px;min-width:34px;padding:0 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-weight:800;font-size:12px;cursor:pointer;transition:.12s}
+  #langBtn:hover{border-color:var(--teal);color:var(--teal)}
   #tourBlock{position:fixed;inset:0;z-index:79;display:none}
   #tourBlock.show{display:block}
   #tourHole{position:fixed;display:none;border-radius:12px;border:2px solid var(--teal);box-shadow:0 0 0 9999px rgba(6,10,18,.74),0 0 18px rgba(63,224,208,.5);z-index:80;pointer-events:none;transition:all .25s cubic-bezier(.4,0,.2,1)}
@@ -157,6 +159,7 @@
     <div id="resStrip" style="display:flex;gap:7px;flex-wrap:wrap"></div>
     <div class="pill" id="cyclePill"></div>
     <div class="pill" id="eraPill"></div>
+    <button id="langBtn" title="Language / 언어"></button>
     <button id="helpBtn" title="Tutorial">?</button>
   </header>
   <main>
@@ -214,7 +217,8 @@
 <script src="./assets/three.min.js"></script>
 <script type="module">
 import { STR } from "./strings.js";
-const lang="en"; const T=()=>STR[lang];
+let lang="en"; try{lang=localStorage.getItem("algopolis_lang")||((navigator.language||"en").startsWith("ko")?"ko":"en");}catch(e){}
+const T=()=>STR[lang]||STR.en;
 
 /* rng: random seed per game (deterministic within a game) */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -582,6 +586,9 @@ function applyLangStatic(){const t=T();$("introTag").textContent=t.era+" · "+t.
 function newGame(){reset();buildMeters();buildResStrip();buildTabs();tab="build";renderPanel();refreshHUD();$("log").innerHTML="—";$("objective").textContent=T().objective;$("toast").classList.remove("show");hide("end");hide("event");hide("debug");}
 $("startBtn").onclick=()=>{hide("intro");try{if(!localStorage.getItem("algopolis_onboarded"))startTour();}catch(e){startTour();}};
 $("runBtn").onclick=()=>runCycle();$("dbgClose").onclick=()=>hide("debug");$("againBtn").onclick=newGame;
+function setLang(l){if(!STR[l])return;lang=l;try{localStorage.setItem("algopolis_lang",l);}catch(e){}
+  applyLangStatic();buildMeters();buildResStrip();buildTabs();renderPanel();refreshHUD();$("objective").textContent=T().objective;$("langBtn").textContent=l==="ko"?"EN":"한";}
+$("langBtn").onclick=()=>setLang(lang==="ko"?"en":"ko");
 /* onboarding spotlight tour */
 const TOUR=[{sel:"#stage"},{sel:"#tools",tab:"build",do:"build"},{sel:"#resStrip"},{sel:"#meters"},{sel:"#panel",tab:"govern",do:"govern"},{sel:"#runBtn",do:"run"},{sel:"#panel",tab:"research"},{sel:"#panel",tab:"world"},{sel:"#stage",tab:"build"}];
 let tourI=-1;
@@ -605,8 +612,9 @@ function tourCheck(action){if(tourI>=0&&TOUR[tourI]&&TOUR[tourI].do===action){co
 $("helpBtn").onclick=startTour;$("tourSkip").onclick=endTour;$("tourBack").onclick=()=>showStep(Math.max(0,tourI-1));$("tourNext").onclick=()=>{if(tourI>=TOUR.length-1)endTour();else showStep(tourI+1);};
 addEventListener("resize",()=>{if(tourI>=0)showStep(tourI);});
 addEventListener("keydown",e=>{if(e.code==="Space"&&!$("runBtn").disabled){e.preventDefault();runCycle();}});
-(async function(){applyLangStatic();newGame();await loadAssets();resize();
-  const qs=new URLSearchParams(location.search);
+(async function(){const qs=new URLSearchParams(location.search);
+  if(qs.has("lang")&&STR[qs.get("lang")])lang=qs.get("lang");
+  applyLangStatic();newGame();$("langBtn").textContent=lang==="ko"?"EN":"한";await loadAssets();resize();
   if(qs.has("nointro"))hide("intro");
   if(qs.has("tab")){tab=qs.get("tab");renderPanel();}
   if(qs.has("ev"))showEvent(qs.get("ev"));
