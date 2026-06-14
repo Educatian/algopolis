@@ -1,0 +1,27 @@
+{
+ "brief": "ALGOPOLIS game audio: procedural Web Audio SFX + ambient pad + mute, deploy & verify",
+ "created": "2026-06-14T06:24:22.661955+00:00",
+ "goals": [
+  {
+   "id": "G001",
+   "title": "SFX engine",
+   "objective": "Procedural Web Audio SFX (click/build/research/run/event/victory/collapse) + gesture-started AudioContext + mute toggle in header, no external assets",
+   "status": "complete",
+   "evidence": "Web Audio SFX engine added: AUDIO ctx + blip()/snd() with 9 cues (click/select/build/research/run/event/victory/collapse/error); gesture-started+resumed AudioContext on first pointerdown; mute toggle #muteBtn (localStorage algopolis_muted); snd() hooked into onBtn/placeZone/researchTech/runCycle/showEvent/endGame/flash. node --check SYNTAX OK."
+  },
+  {
+   "id": "G002",
+   "title": "Ambient pad",
+   "objective": "Generative low-volume ambient音 (oscillator drone/arpeggio) tied to mute, starts on first gesture",
+   "status": "complete",
+   "evidence": "Ambient pad startPad(): low-volume drone (2 detuned sines through LFO-modulated lowpass) + interval arpeggio (pentatonic, blip vol .05), routed via AUDIO.master so mute-gated; auto-starts on first pointerdown gesture (typeof-guarded call). node --check SYNTAX OK."
+  },
+  {
+   "id": "G003",
+   "title": "Verify & deploy",
+   "objective": "puppeteer confirms AudioContext starts + SFX callable + mute works with no errors; repackage, deploy to Higgsfield, live render check, push GitHub",
+   "status": "in_progress",
+   "evidence": null
+  }
+ ]
+}
