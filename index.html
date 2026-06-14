@@ -350,6 +350,7 @@ function runCycle(){
   rivals.forEach(r=>{const tg=NAT.find(n=>n.key===r.key).t;METERS.forEach(k=>{r.m[k]=clamp(r.m[k]+(tg[k]-r.m[k])*0.08+rnd(-2,2));});});
   cycle++; postLog(welfareT,fairnessT,effT,unrestDelta);
   runDebrief(welfareT,fairnessT,effT,unrestDelta);
+  spawnFlow();
   // collapse fail
   if(meters.trust<25||res.unrest>=95){ endGame("collapse"); return; }
   if(cycle>8){ endGame(); return; }
@@ -509,6 +510,7 @@ function runDebrief(w,f,e,u){const B=built();const starved=B.filter(t=>t.served/
 const glcanvas=$("c");
 const A={icURL:{}};
 let renderer,scene,cam,ray,tileMeshes=[],bldSprites=[],TEX={},hover=-1,VW=0,VH=0;
+let parts=[],PG,PPOS,PCOL,PTS,CORE,lastInput=0;const PMAX=440;
 let azim=Math.PI*0.25,polar=0.95,radius=GRID*1.4,azimT=azim,polarT=polar,radiusT=radius,pulse=0;
 const target=new THREE.Vector3(0,0.3,0);
 const W2=g=>g-(GRID-1)/2;
@@ -543,6 +545,23 @@ function initScene(){
   const gp=new THREE.Mesh(new THREE.PlaneGeometry(GRID*3.4,GRID*3.4),new THREE.MeshBasicMaterial({color:0x0b1220}));gp.rotation.x=-Math.PI/2;gp.position.y=-0.28;scene.add(gp);
   const geo=new THREE.BoxGeometry(0.94,0.24,0.94);
   for(const t0 of tiles){const idx=t0.gy*GRID+t0.gx;const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:0x26344f}));m.position.set(W2(t0.gx),0,W2(t0.gy));m.userData.idx=idx;scene.add(m);tileMeshes[idx]=m;}
+  // soft particle sprite texture
+  const pc=document.createElement("canvas");pc.width=pc.height=64;const px=pc.getContext("2d");const gg=px.createRadialGradient(32,32,0,32,32,32);gg.addColorStop(0,"rgba(255,255,255,1)");gg.addColorStop(.4,"rgba(255,255,255,.55)");gg.addColorStop(1,"rgba(255,255,255,0)");px.fillStyle=gg;px.fillRect(0,0,64,64);
+  // flowing-data particle cloud (allocation visualization + ambient motes)
+  PG=new THREE.BufferGeometry();PPOS=new Float32Array(PMAX*3).fill(-999);PCOL=new Float32Array(PMAX*3);
+  PG.setAttribute("position",new THREE.BufferAttribute(PPOS,3));PG.setAttribute("color",new THREE.BufferAttribute(PCOL,3));
+  PTS=new THREE.Points(PG,new THREE.PointsMaterial({size:.26,map:new THREE.CanvasTexture(pc),vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.95}));
+  scene.add(PTS);
+  for(let n=0;n<PMAX;n++)parts.push({active:false,amb:false,fx:0,fy:0,fz:0,tx:0,ty:0,tz:0,t:0,sp:0,ph:0,r:0,g:0,b:0});
+  // ambient floating data motes (first 44 particles, persistent)
+  for(let n=0;n<44;n++){const p=parts[n];p.active=true;p.amb=true;p.fx=W2(rnd(1,GRID-2));p.fz=W2(rnd(1,GRID-2));p.fy=.4+rnd(0,3);p.ph=rnd(0,6.28);p.r=.22;p.g=.85;p.b=.8;}
+  // central holographic AI core
+  CORE=new THREE.Group();
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.15,.045,8,48),new THREE.MeshBasicMaterial({color:0x3fe0d0,transparent:true,opacity:.5}));ring.rotation.x=Math.PI/2;CORE.add(ring);
+  const ring2=new THREE.Mesh(new THREE.TorusGeometry(.85,.035,8,40),new THREE.MeshBasicMaterial({color:0x6fb8ff,transparent:true,opacity:.4}));CORE.add(ring2);
+  const orb=new THREE.Mesh(new THREE.IcosahedronGeometry(.34,0),new THREE.MeshBasicMaterial({color:0x3fe0d0,wireframe:true,transparent:true,opacity:.6}));CORE.add(orb);
+  CORE.position.set(0,2.4,0);scene.add(CORE);
+  lastInput=performance.now();
   resize();requestAnimationFrame(loop);
 }
 function resize(){if(!renderer)return;const r=glcanvas.getBoundingClientRect();VW=r.width;VH=r.height;renderer.setSize(VW,VH,false);cam.aspect=VW/Math.max(1,VH);cam.updateProjectionMatrix();}
@@ -561,19 +580,36 @@ function syncScene(now){const t=now||0;
 }
 function camUpdate(){azim+=(azimT-azim)*0.18;polar+=(polarT-polar)*0.18;radius+=(radiusT-radius)*0.18;
   cam.position.set(target.x+radius*Math.sin(polar)*Math.sin(azim),target.y+radius*Math.cos(polar),target.z+radius*Math.sin(polar)*Math.cos(azim));cam.lookAt(target);}
-function loop(now){if(renderer){syncScene(now);camUpdate();renderer.render(scene,cam);}drawMini();pulse*=0.93;
+function freeP(){for(let n=44;n<parts.length;n++)if(!parts[n].active)return parts[n];return null;}
+function spawnFlow(){if(!PG)return;const B=built();let bud=300;
+  for(const t0 of B){const cov=t0.served/Math.max(1,t0.trueNeed),cnt=Math.max(1,Math.round(Math.min(cov,1.3)*9)),teal=cov>=0.5;
+    for(let k=0;k<cnt&&bud>0;k++){const p=freeP();if(!p)break;bud--;p.active=true;p.amb=false;p.t=0;p.sp=.016+rnd(0,.014);
+      p.fx=rnd(-.3,.3);p.fy=2.4+rnd(-.2,.2);p.fz=rnd(-.3,.3);p.tx=W2(t0.gx)+rnd(-.25,.25);p.ty=.5;p.tz=W2(t0.gy)+rnd(-.25,.25);
+      if(teal){p.r=.25;p.g=.88;p.b=.82;}else{p.r=1;p.g=.42;p.b=.42;}}}}
+function updateParticles(){if(!PG)return;
+  for(let n=0;n<parts.length;n++){const p=parts[n],o=n*3;if(!p.active){PPOS[o+1]=-999;continue;}
+    if(p.amb){p.ph+=.012;PPOS[o]=p.fx+Math.sin(p.ph)*.35;PPOS[o+1]=p.fy+Math.sin(p.ph*.7)*.3;PPOS[o+2]=p.fz+Math.cos(p.ph)*.35;PCOL[o]=p.r*.5;PCOL[o+1]=p.g*.5;PCOL[o+2]=p.b*.5;continue;}
+    p.t+=p.sp;if(p.t>=1){p.active=false;PPOS[o+1]=-999;continue;}
+    const e=p.t<.5?2*p.t*p.t:1-Math.pow(-2*p.t+2,2)/2,f=1-Math.abs(p.t-.5)*1.3;
+    PPOS[o]=p.fx+(p.tx-p.fx)*e;PPOS[o+1]=p.fy+(p.ty-p.fy)*e+Math.sin(p.t*3.14159)*.5;PPOS[o+2]=p.fz+(p.tz-p.fz)*e;
+    PCOL[o]=p.r*f;PCOL[o+1]=p.g*f;PCOL[o+2]=p.b*f;}
+  PG.attributes.position.needsUpdate=true;PG.attributes.color.needsUpdate=true;}
+function loop(now){if(renderer){syncScene(now);updateParticles();
+    if(CORE){CORE.rotation.y+=.012;CORE.children[2].rotation.x+=.02;CORE.children[2].rotation.y+=.026;CORE.scale.setScalar(1+pulse*.32);CORE.position.y=2.4+Math.sin(now/900)*.12;}
+    if(now-lastInput>4000)azimT+=.0018;
+    camUpdate();renderer.render(scene,cam);}drawMini();pulse*=0.93;
   if(dev){frames++;if(now-fpsAt>=500){fps=Math.round(frames*1000/(now-fpsAt));frames=0;fpsAt=now;$("dev").textContent=fps+" fps";}}requestAnimationFrame(loop);}
 function pickIdx(px,py){const r=glcanvas.getBoundingClientRect();ray.setFromCamera({x:((px-r.left)/r.width)*2-1,y:-((py-r.top)/r.height)*2+1},cam);const hits=ray.intersectObjects(tileMeshes.filter(Boolean));return hits.length?hits[0].object.userData.idx:-1;}
 let down=false,moved=false,px0=0,py0=0,az0=0,po0=0;
-glcanvas.addEventListener("pointerdown",e=>{down=true;moved=false;px0=e.clientX;py0=e.clientY;az0=azim;po0=polar;glcanvas.setPointerCapture(e.pointerId);});
+glcanvas.addEventListener("pointerdown",e=>{down=true;moved=false;px0=e.clientX;py0=e.clientY;az0=azim;po0=polar;lastInput=performance.now();glcanvas.setPointerCapture(e.pointerId);});
 glcanvas.addEventListener("pointermove",e=>{if(down){const dx=e.clientX-px0,dy=e.clientY-py0;if(Math.abs(dx)+Math.abs(dy)>6)moved=true;azim=az0-dx*0.006;polar=Math.max(0.35,Math.min(1.35,po0-dy*0.005));azimT=azim;polarT=polar;}else hover=pickIdx(e.clientX,e.clientY);});
 glcanvas.addEventListener("pointerup",e=>{down=false;if(moved||ended)return;const idx=pickIdx(e.clientX,e.clientY);if(idx<0)return;const t0=tiles[idx];
   if(tool==="inspect"){openDebug(t0);}
   else if(tool==="upgrade"){if(!t0.zone){openDebug(t0);return;}if(t0.level>=3){flash("Max level");return;}const c=upgradeCost(t0);if(res.budget<c){flash(T().noBudget);return;}res.budget-=c;t0.level++;t0.trueNeed=clamp(t0.trueNeed+10);refreshHUD();}
   else{if(!t0.zone){if(placeZone(t0,tool,false)){refreshHUD();tourCheck("build");}else flash(T().noBudget);}else openDebug(t0);}});
 glcanvas.addEventListener("pointerleave",()=>{hover=-1;down=false;});
-glcanvas.addEventListener("wheel",e=>{e.preventDefault();radiusT=Math.max(GRID*0.7,Math.min(GRID*2.3,radiusT+e.deltaY*0.012));},{passive:false});
-function rot(d){azimT+=d*Math.PI/2;}function zoomB(d){radiusT=Math.max(GRID*0.7,Math.min(GRID*2.3,radiusT+d));}function camReset(){azimT=Math.PI*0.25;polarT=0.95;radiusT=GRID*1.4;target.set(0,0.3,0);}
+glcanvas.addEventListener("wheel",e=>{e.preventDefault();lastInput=performance.now();radiusT=Math.max(GRID*0.7,Math.min(GRID*2.3,radiusT+e.deltaY*0.012));},{passive:false});
+function rot(d){azimT+=d*Math.PI/2;lastInput=performance.now();}function zoomB(d){radiusT=Math.max(GRID*0.7,Math.min(GRID*2.3,radiusT+d));lastInput=performance.now();}function camReset(){azimT=Math.PI*0.25;polarT=0.95;radiusT=GRID*1.4;target.set(0,0.3,0);lastInput=performance.now();}
 $("camRotL").onclick=()=>rot(-1);$("camRotR").onclick=()=>rot(1);$("camIn").onclick=()=>zoomB(-GRID*0.25);$("camOut").onclick=()=>zoomB(GRID*0.25);$("camHome").onclick=camReset;
 const mini=$("mini"),mctx=mini.getContext("2d");
 function drawMini(){const Wd=mini.width,H=mini.height,cell=Wd/GRID;mctx.clearRect(0,0,Wd,H);mctx.fillStyle="rgba(13,19,33,.6)";mctx.fillRect(0,0,Wd,H);
