@@ -200,6 +200,8 @@ ALGOPOLIS (the *designer* lens on algorithmic systems) is designed to pair with 
 
 A draft plan for **analysis‑compatible learning telemetry** across the two games — using a shared participant id and a mirrored log schema, while keeping each game's data store fully isolated — lives in **[`docs/TELEMETRY_PLAN.md`](docs/TELEMETRY_PLAN.md)**. (Plan only; not yet implemented.)
 
+📍 Development roadmap: **[`docs/ROADMAP.md`](docs/ROADMAP.md)**.
+
 ## Credits
 
 Designed & built by **Jewoong Moon** as part of an evidence‑grounded educational‑games line on AI literacy and ethics. Art generated with Higgsfield; 3D via Three.js (MIT).
