@@ -600,6 +600,14 @@ function initScene(){
 }
 function resize(){if(!renderer)return;const r=glcanvas.getBoundingClientRect();VW=r.width;VH=r.height;renderer.setSize(VW,VH,false);cam.aspect=VW/Math.max(1,VH);cam.updateProjectionMatrix();}
 addEventListener("resize",resize);addEventListener("orientationchange",resize);
+function makeBuilding(zone){const g=new THREE.Group();const M=c=>new THREE.MeshLambertMaterial({color:c});const parts=[];
+  function box(w,h,d,x,z,c,yb){const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));b.position.set(x,(yb||0)+h/2,z);g.add(b);parts.push({mesh:b,base:c});return b;}
+  const slate=0x6c82a8,concrete=0x9fb0cc,dark=0x44506a,amber=0xf2b24c,steel=0x556074,srv=0x33425f;
+  if(zone==="residential"){box(0.52,0.72,0.5,-0.18,-0.08,slate);box(0.46,1.0,0.46,0.2,0.16,slate);box(0.42,0.5,0.42,0.06,-0.26,concrete);}
+  else if(zone==="civic"){box(0.86,0.5,0.82,0,0,concrete);const d=new THREE.Mesh(new THREE.SphereGeometry(0.3,16,10,0,6.283,0,1.571),M(amber));d.position.y=0.5;g.add(d);parts.push({mesh:d,base:amber});box(0.09,0.52,0.09,-0.3,0.3,concrete);box(0.09,0.52,0.09,0.3,0.3,concrete);}
+  else if(zone==="industrial"){box(0.88,0.5,0.66,0,0,dark);const s1=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.7,10),M(steel));s1.position.set(-0.22,0.85,-0.08);g.add(s1);parts.push({mesh:s1,base:steel});const s2=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.55,10),M(steel));s2.position.set(0.04,0.77,-0.12);g.add(s2);parts.push({mesh:s2,base:steel});box(0.3,0.34,0.3,0.28,0.2,dark);}
+  else if(zone==="data"){for(let i=0;i<3;i++)box(0.7,0.2,0.48,0,0,srv,i*0.24);const dish=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.04,14),M(concrete));dish.rotation.x=0.6;dish.position.set(0.12,0.86,0.08);g.add(dish);parts.push({mesh:dish,base:concrete});}
+  g.userData.parts=parts;return g;}
 function syncScene(now){const t=now||0;
   for(const t0 of tiles){const idx=t0.gy*GRID+t0.gx,m=tileMeshes[idx];if(!m)continue;let col=0x1f2b42,emi=0x000000,ty=0;
     if(t0.zone){const cov=t0.served/Math.max(1,t0.trueNeed);if(cov<0.45){col=0x5e2330;emi=0x3a0f15;}else if(cov>0.8){col=0x2f5750;emi=0x0d2a26;}else col=0x46597f;ty=0.04+0.05*t0.level;}
@@ -607,22 +615,36 @@ function syncScene(now){const t=now||0;
     m.material.color.setHex(col);
     if(pulse>0.02&&t0.zone){const e=new THREE.Color(emi);e.addScalar(pulse*0.45);m.material.emissive.copy(e);}else m.material.emissive.setHex(emi);
     m.position.y+=(ty-m.position.y)*0.2;
-    if(t0.zone){let sp=bldSprites[idx];const key=ZONES[t0.zone].img;
-      if(!sp||sp.userData.key!==key){if(sp)scene.remove(sp);sp=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX[key],transparent:true,depthWrite:false}));sp.userData.key=key;scene.add(sp);bldSprites[idx]=sp;}
-      const s=1.4+0.22*(t0.level-1);sp.scale.set(s,s,1);const bob=Math.sin(t/600+idx)*0.03;sp.position.set(W2(t0.gx),ty+0.14+s*0.44+bob,W2(t0.gy));}
+    if(t0.zone){let g=bldSprites[idx];
+      if(!g||g.userData.zone!==t0.zone){if(g)scene.remove(g);g=makeBuilding(t0.zone);g.userData.zone=t0.zone;g.userData.born=t;scene.add(g);bldSprites[idx]=g;}
+      const cov=t0.served/Math.max(1,t0.trueNeed);const topY=m.position.y+0.12;        // sit on the tile top — grounded, not floating
+      let sy=1+0.25*(t0.level-1),pop=1;
+      if(g.userData.born){const age=(t-g.userData.born)/450;if(age<1)pop=Math.max(.02,age<.7?age/.7:1+Math.sin((age-.7)*7)*.1*(1-age));else g.userData.born=0;} // rise from ground
+      let lean=0,emi=0x000000,mul=1;
+      if(cov<0.45){lean=Math.sin(t/60+idx)*(0.03+pulse*0.06);emi=0x4a0f12;mul=0.55;}     // suffering: lean + darken + red
+      else if(cov>0.85){emi=0x10403b;sy*=1+pulse*0.06;}                                   // thriving: lit windows + grow on run
+      g.scale.set(1,sy*pop,1);g.position.set(W2(t0.gx),topY,W2(t0.gy));g.rotation.z=lean;
+      for(const pt of g.userData.parts){const mm=pt.mesh.material;mm.emissive.setHex(emi);mm.color.setHex(pt.base);if(mul<1)mm.color.multiplyScalar(mul);}
+      const wx=W2(t0.gx),wz=W2(t0.gy),topE=topY+1.0*sy*pop;
+      if(t0.zone==="industrial"&&Math.random()<0.06)emit(wx-0.18,topE,wz-0.08,.5,.5,.55,1.3,.013);
+      else if(t0.zone==="data"&&Math.random()<0.05)emit(wx+rnd(-.15,.15),topE,wz,.25,.85,.85,1.6,.022);
+      if(cov<0.45&&Math.random()<0.07)emit(wx+rnd(-.2,.2),topY+0.4,wz+rnd(-.2,.2),1,.4,.35,1.0,.016);
+      else if(cov>0.85&&Math.random()<0.035)emit(wx+rnd(-.15,.15),topE,wz+rnd(-.15,.15),.3,.9,.8,1.2,.02);}
     else if(bldSprites[idx]){scene.remove(bldSprites[idx]);bldSprites[idx]=null;}}
 }
+function emit(x,y,z,r,g,b,vy,sp){const p=freeP();if(!p)return;p.active=true;p.amb=false;p.kind="rise";p.t=0;p.sp=sp;p.vy=vy;p.ph=Math.random()*6.28;p.fx=x;p.fy=y;p.fz=z;p.r=r;p.g=g;p.b=b;}
 function camUpdate(){azim+=(azimT-azim)*0.18;polar+=(polarT-polar)*0.18;radius+=(radiusT-radius)*0.18;
   cam.position.set(target.x+radius*Math.sin(polar)*Math.sin(azim),target.y+radius*Math.cos(polar),target.z+radius*Math.sin(polar)*Math.cos(azim));cam.lookAt(target);}
 function freeP(){for(let n=44;n<parts.length;n++)if(!parts[n].active)return parts[n];return null;}
 function spawnFlow(){if(!PG)return;const B=built();let bud=300;
   for(const t0 of B){const cov=t0.served/Math.max(1,t0.trueNeed),cnt=Math.max(1,Math.round(Math.min(cov,1.3)*9)),teal=cov>=0.5;
-    for(let k=0;k<cnt&&bud>0;k++){const p=freeP();if(!p)break;bud--;p.active=true;p.amb=false;p.t=0;p.sp=.016+rnd(0,.014);
+    for(let k=0;k<cnt&&bud>0;k++){const p=freeP();if(!p)break;bud--;p.active=true;p.amb=false;p.kind="flow";p.t=0;p.sp=.016+rnd(0,.014);
       p.fx=rnd(-.3,.3);p.fy=2.4+rnd(-.2,.2);p.fz=rnd(-.3,.3);p.tx=W2(t0.gx)+rnd(-.25,.25);p.ty=.5;p.tz=W2(t0.gy)+rnd(-.25,.25);
       if(teal){p.r=.25;p.g=.88;p.b=.82;}else{p.r=1;p.g=.42;p.b=.42;}}}}
 function updateParticles(){if(!PG)return;
   for(let n=0;n<parts.length;n++){const p=parts[n],o=n*3;if(!p.active){PPOS[o+1]=-999;continue;}
     if(p.amb){p.ph+=.012;PPOS[o]=p.fx+Math.sin(p.ph)*.35;PPOS[o+1]=p.fy+Math.sin(p.ph*.7)*.3;PPOS[o+2]=p.fz+Math.cos(p.ph)*.35;PCOL[o]=p.r*.5;PCOL[o+1]=p.g*.5;PCOL[o+2]=p.b*.5;continue;}
+    if(p.kind==="rise"){p.t+=p.sp;if(p.t>=1){p.active=false;PPOS[o+1]=-999;continue;}PPOS[o]=p.fx+Math.sin(p.t*6+p.ph)*.12;PPOS[o+1]=p.fy+p.t*p.vy;PPOS[o+2]=p.fz+Math.cos(p.t*6+p.ph)*.12;const rf=1-p.t;PCOL[o]=p.r*rf;PCOL[o+1]=p.g*rf;PCOL[o+2]=p.b*rf;continue;}
     p.t+=p.sp;if(p.t>=1){p.active=false;PPOS[o+1]=-999;continue;}
     const e=p.t<.5?2*p.t*p.t:1-Math.pow(-2*p.t+2,2)/2,f=1-Math.abs(p.t-.5)*1.3;
     PPOS[o]=p.fx+(p.tx-p.fx)*e;PPOS[o+1]=p.fy+(p.ty-p.fy)*e+Math.sin(p.t*3.14159)*.5;PPOS[o+2]=p.fz+(p.tz-p.fz)*e;

@@ -20,8 +20,8 @@
    "id": "G003",
    "title": "Verify & deploy",
    "objective": "puppeteer confirms AudioContext starts + SFX callable + mute works with no errors; repackage, deploy to Higgsfield, live render check, push GitHub",
-   "status": "in_progress",
-   "evidence": null
+   "status": "complete",
+   "evidence": "Audio verified via puppeteer (instrumented window.AudioContext): ctx created on first gesture, oscillators fire on select/run (osc 9->15), ambient pad starts (3 osc), mute toggles 🔊<->🔇 + localStorage, 0 pageerrors. Deployed to Higgsfield (game_id 99dcde78, live render OK with 🔊 in header). Pushed GitHub b447e62."
   }
  ]
 }
