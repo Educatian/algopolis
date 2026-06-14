@@ -568,9 +568,9 @@ async function loadAssets(){
   const ubu=cToURL(chroma(ub)),uou=cToURL(chroma(uo));
   if(ubu)document.documentElement.style.setProperty("--btn",`url(${ubu})`);if(uou)document.documentElement.style.setProperty("--btnon",`url(${uou})`);
   // building facade textures (Higgsfield) -> map+emissiveMap
-  const [fr,fc,fi,fd]=await Promise.all([loadImg("./assets/fac_residential.png"),loadImg("./assets/fac_civic.png"),loadImg("./assets/fac_industrial.png"),loadImg("./assets/fac_data.png")]);
+  const [fr,fc,fi,fd,froof]=await Promise.all([loadImg("./assets/fac_residential.png"),loadImg("./assets/fac_civic.png"),loadImg("./assets/fac_industrial.png"),loadImg("./assets/fac_data.png"),loadImg("./assets/fac_roof.png")]);
   const mtex=im=>{if(!im)return null;const t=new THREE.Texture(im);t.needsUpdate=true;t.colorSpace=THREE.SRGBColorSpace;return t;};
-  TEX2.residential=mtex(fr);TEX2.civic=mtex(fc);TEX2.industrial=mtex(fi);TEX2.data=mtex(fd);
+  TEX2.residential=mtex(fr);TEX2.civic=mtex(fc);TEX2.industrial=mtex(fi);TEX2.data=mtex(fd);TEX2.roof=mtex(froof);
   initScene();paintIcons();
 }
 function initScene(){
@@ -613,13 +613,26 @@ function setNight(n){night=n;try{localStorage.setItem("algopolis_night",n?"1":"0
   if(scene&&scene.fog)scene.fog.color.setHex(n?0x05070e:0x0b1018);
   const bg=$("bg3d");if(bg)bg.style.filter=n?"blur(11px) brightness(.2) saturate(1.15) hue-rotate(205deg)":"blur(11px) brightness(.46) saturate(.9)";
   const b=$("dayBtn");if(b)b.textContent=n?"🌙":"☀";}
-function makeBuilding(zone){const g=new THREE.Group();const M=c=>new THREE.MeshLambertMaterial({color:c});const parts=[];const fx=TEX2[zone];
-  function box(w,h,d,x,z,c,yb){const mat=fx?new THREE.MeshLambertMaterial({color:0xffffff,map:fx,emissiveMap:fx}):M(c);const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);b.position.set(x,(yb||0)+h/2,z);g.add(b);parts.push({mesh:b,base:fx?0xffffff:c});return b;}
+function makeBuilding(zone){const g=new THREE.Group();const parts=[];const fx=TEX2[zone];const M=c=>new THREE.MeshLambertMaterial({color:c});
+  const botMat=new THREE.MeshLambertMaterial({color:0x1c2434});
+  // box with per-face materials: walls = facade(windows) on the 4 sides, roof texture on top, plain on bottom
+  function box(w,h,d,x,z,c,yb){const wm=fx?new THREE.MeshLambertMaterial({color:0xffffff,map:fx,emissiveMap:fx}):M(c);
+    const rm=TEX2.roof?new THREE.MeshLambertMaterial({color:0xffffff,map:TEX2.roof}):M(0x2a3346);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),[wm,wm,rm,botMat,wm,wm]);b.position.set(x,(yb||0)+h/2,z);g.add(b);
+    parts.push({mat:wm,base:fx?0xffffff:c,win:true});parts.push({mat:rm,base:TEX2.roof?0xffffff:0x2a3346,win:false});return b;}
+  function acc(mesh,c,win){g.add(mesh);parts.push({mat:mesh.material,base:c,win:!!win});return mesh;}
   const slate=0x6c82a8,concrete=0x9fb0cc,dark=0x44506a,amber=0xf2b24c,steel=0x556074,srv=0x33425f;
   if(zone==="residential"){box(0.52,0.72,0.5,-0.18,-0.08,slate);box(0.46,1.0,0.46,0.2,0.16,slate);box(0.42,0.5,0.42,0.06,-0.26,concrete);}
-  else if(zone==="civic"){box(0.86,0.5,0.82,0,0,concrete);const d=new THREE.Mesh(new THREE.SphereGeometry(0.3,16,10,0,6.283,0,1.571),M(amber));d.position.y=0.5;g.add(d);parts.push({mesh:d,base:amber});box(0.09,0.52,0.09,-0.3,0.3,concrete);box(0.09,0.52,0.09,0.3,0.3,concrete);}
-  else if(zone==="industrial"){box(0.88,0.5,0.66,0,0,dark);const s1=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.7,10),M(steel));s1.position.set(-0.22,0.85,-0.08);g.add(s1);parts.push({mesh:s1,base:steel});const s2=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.55,10),M(steel));s2.position.set(0.04,0.77,-0.12);g.add(s2);parts.push({mesh:s2,base:steel});box(0.3,0.34,0.3,0.28,0.2,dark);}
-  else if(zone==="data"){for(let i=0;i<3;i++)box(0.7,0.2,0.48,0,0,srv,i*0.24);const dish=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.04,14),M(concrete));dish.rotation.x=0.6;dish.position.set(0.12,0.86,0.08);g.add(dish);parts.push({mesh:dish,base:concrete});}
+  else if(zone==="civic"){box(0.86,0.5,0.82,0,0,concrete);
+    const d=new THREE.Mesh(new THREE.SphereGeometry(0.3,16,10,0,6.283,0,1.571),M(amber));d.position.y=0.5;acc(d,amber,true);
+    const c1=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.52,0.09),M(concrete));c1.position.set(-0.3,0.26,0.3);acc(c1,concrete,false);
+    const c2=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.52,0.09),M(concrete));c2.position.set(0.3,0.26,0.3);acc(c2,concrete,false);}
+  else if(zone==="industrial"){box(0.88,0.5,0.66,0,0,dark);
+    const s1=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.7,10),M(steel));s1.position.set(-0.22,0.85,-0.08);acc(s1,steel,false);
+    const s2=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.55,10),M(steel));s2.position.set(0.04,0.77,-0.12);acc(s2,steel,false);
+    const xb=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.34,0.3),M(dark));xb.position.set(0.28,0.17,0.2);acc(xb,dark,false);}
+  else if(zone==="data"){for(let i=0;i<3;i++)box(0.7,0.2,0.48,0,0,srv,i*0.24);
+    const dish=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.04,14),M(concrete));dish.rotation.x=0.6;dish.position.set(0.12,0.86,0.08);acc(dish,concrete,true);}
   g.userData.parts=parts;return g;}
 function syncScene(now){const t=now||0;
   for(const t0 of tiles){const idx=t0.gy*GRID+t0.gx,m=tileMeshes[idx];if(!m)continue;let col=0x1f2b42,emi=0x000000,ty=0;
@@ -638,7 +651,7 @@ function syncScene(now){const t=now||0;
       else if(cov>0.85){sy*=1+pulse*0.06;emiCol=0x3fe0d0;glow=bg*1.3;}                    // thriving: teal lit windows + grow
       else {emiCol=0xffcaa0;glow=bg;}                                                     // normal: warm windows
       g.scale.set(1,sy*pop,1);g.position.set(W2(t0.gx),topY,W2(t0.gy));g.rotation.z=lean;
-      for(const pt of g.userData.parts){const mm=pt.mesh.material;mm.color.setHex(pt.base);if(mul<1)mm.color.multiplyScalar(mul);mm.emissive.setHex(emiCol);mm.emissiveIntensity=glow;}
+      for(const pt of g.userData.parts){const mm=pt.mat;mm.color.setHex(pt.base);if(mul<1)mm.color.multiplyScalar(mul);if(pt.win){mm.emissive.setHex(emiCol);mm.emissiveIntensity=glow;}else{mm.emissive.setHex(0x000000);mm.emissiveIntensity=0;}}
       const wx=W2(t0.gx),wz=W2(t0.gy),topE=topY+1.0*sy*pop;
       if(t0.zone==="industrial"&&Math.random()<0.06)emit(wx-0.18,topE,wz-0.08,.5,.5,.55,1.3,.013);
       else if(t0.zone==="data"&&Math.random()<0.05)emit(wx+rnd(-.15,.15),topE,wz,.25,.85,.85,1.6,.022);

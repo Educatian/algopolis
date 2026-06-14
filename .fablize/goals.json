@@ -20,8 +20,8 @@
    "id": "G003",
    "title": "Verify & deploy",
    "objective": "headless day+night screenshots show textured grounded buildings w/ glowing windows, no errors; deploy Higgsfield + push GitHub",
-   "status": "in_progress",
-   "evidence": null
+   "status": "complete",
+   "evidence": "Deployed Higgsfield (game_id 99dcde78) + pushed GitHub 9d4ff39. Live night screenshot shows textured grounded buildings with glowing windows + dark-blue lighting + ☀/🌙 toggle. zip 7.46MB (facades 512px)."
   }
  ]
 }
