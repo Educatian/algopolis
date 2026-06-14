@@ -1,0 +1,7 @@
+# build artifacts / scratch
+*.zip
+iso-city.html
+.DS_Store
+Thumbs.db
+algopolis_walkthrough.mp4
+algopolis_walkthrough_narrated.mp4

@@ -1,0 +1,9 @@
+id,role,type,description,size/ratio,style_line_ref,source
+bg_city,city map backdrop drawn behind districts,background,abstract isometric data-city skyline with faint grid and circuit lines,16:9,STYLE FORMULA,generate
+bld_residential,residential district building sprite on iso map,sprite,isometric residential housing block,1:1,STYLE FORMULA,generate
+bld_civic,civic/government district building sprite (amber accent),sprite,isometric civic government hall with dome,1:1,STYLE FORMULA,generate
+bld_industrial,industrial district building sprite,sprite,isometric industrial factory block with stacks,1:1,STYLE FORMULA,generate
+meter_icons,5 status-meter glyphs (efficiency/welfare/fairness/trust/transparency),ui,procedurally drawn flat iso glyphs,vector,STYLE FORMULA,procedural
+block_chips,algorithm block chips (INPUT/LOGIC/ACTION),ui,procedurally drawn rounded chips with charcoal outline,vector,STYLE FORMULA,procedural
+cover,deploy thumbnail,background,title card ALGOPOLIS over iso city,16:9,STYLE FORMULA,generate
+favicon,deploy icon,ui,square app icon iso block + teal node,1:1,STYLE FORMULA,generate
